@@ -1,1 +1,1 @@
-web: gunicorn 'server.run:create_app()'
+web: honcho start -f ProcfileHoncho

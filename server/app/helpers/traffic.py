@@ -4,17 +4,38 @@ import logging
 
 from pymongo.errors import PyMongoError
 
-from app import DATABASE as db
+from app import MONGO_DATABASE
 from app.utils.misc import get_time_range
 
 
 LOGGER = logging.getLogger(__name__)
 
 
+class Transport:
+    """Class that provides methods for interaction with transport static data."""
+
+    collection = MONGO_DATABASE.transport
+
+    @classmethod
+    def static_info(cls, info_id):
+        """Retrieve transport static information by id."""
+        try:
+            cursor = cls.collection.find_one(
+                filter={"id": info_id},
+                projection={'_id': 0}
+            )
+        except PyMongoError as err:
+            LOGGER.error("Couldn't retrieve transport static info (%s): %s", info_id, err)
+            return None
+
+        return cursor.get("data", [])
+
+
+
 class Congestion:
     """Class that provides method to work with traffic congestion."""
 
-    collection = db.traffic_congestion
+    collection = MONGO_DATABASE.traffic_congestion
 
     @classmethod
     def get_region_congestion(cls, region, limit):
@@ -35,7 +56,7 @@ class Congestion:
 class Traffic:
     """Class that provides methods for interaction with traffic timeseries."""
 
-    collection = db.traffic
+    collection = MONGO_DATABASE.traffic
 
     @staticmethod
     def _format_timeseries(cursor):
