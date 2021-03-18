@@ -28,7 +28,7 @@ STATIC_FILE = f"{APP_CONFIG.STATIC_DIR}/static.zip"
 
 
 @worker_ready.connect
-def at_start(sender, **k):
+def at_start(sender, **kwargs):
     """Run following tasks on the celery work startup."""
     with sender.app.connection() as conn:
         sender.app.send_task("app.tasks.prepare_easyway_static", connection=conn)
@@ -88,12 +88,12 @@ def prepare_easyway_static(self):
     downloaded = download_context(STATIC_URL, STATIC_FILE)
     if not downloaded:
         LOG.warning("Failed to download easyway static data.")
-        return self.retry()
+        raise self.retry()
 
     unzipped = unzip(STATIC_FILE, APP_CONFIG.STATIC_DIR)
     if not unzipped:
         LOG.warning("Failed to unzip easyway static data.")
-        return self.retry()
+        raise self.retry()
 
     transport_counts = get_transport_counts()
     stops_per_routes = get_stops_per_routes()
@@ -109,6 +109,6 @@ def prepare_easyway_static(self):
         MONGO_DATABASE.transport.insert_many(docs)
     except PyMongoError as err:
         LOG.error("Failed to insert routes easyway static data: %s", err)
-        return self.retry()
+        raise self.retry()
 
     LOG.info("Successfully inserted easyway static data.")
