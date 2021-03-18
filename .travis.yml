@@ -1,0 +1,13 @@
+language: python
+python: 3.8
+cache: pip
+
+script:
+  - make lint
+
+deploy:
+  provider: heroku
+  app: traffic-stuck-api
+  api_key: $HEROKU_TOKEN
+  on:
+    branch: master
