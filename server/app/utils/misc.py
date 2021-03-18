@@ -16,7 +16,7 @@ def get_time_range(delta):
     return start, end
 
 
-def response(success, result, status_code):
+def make_response(success, result, status_code):
     """Return prepared http json response."""
     json_result = jsonify({"success": success, "result": result})
     return json_result, status_code

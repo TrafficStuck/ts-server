@@ -5,7 +5,7 @@ from urllib import parse
 from flask import Blueprint, request
 
 from app import CACHE
-from app.utils.misc import response
+from app.utils.misc import make_response
 from app.helpers.traffic import Traffic, Congestion, Transport
 
 
@@ -21,9 +21,9 @@ def get_route_avg_speed(route):
     timeseries = Traffic.get_route_avg_speed(route, delta)
     if timeseries is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
-    return response(True, timeseries, 200)
+    return make_response(True, timeseries, 200)
 
 
 @traffic_blueprint.route("traffic/<route>/trips_count", methods=["GET"])
@@ -35,9 +35,9 @@ def get_route_trips_count(route):
     timeseries = Traffic.get_route_trips_count(route, delta)
     if timeseries is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
-    return response(True, timeseries, 200)
+    return make_response(True, timeseries, 200)
 
 
 @traffic_blueprint.route("traffic/<route>/avg_distance", methods=["GET"])
@@ -49,9 +49,9 @@ def get_route_avg_distance(route):
     timeseries = Traffic.get_route_avg_distance(route, delta)
     if timeseries is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
-    return response(True, timeseries, 200)
+    return make_response(True, timeseries, 200)
 
 
 @traffic_blueprint.route("traffic/<route>/coordinates", methods=["GET"])
@@ -62,10 +62,10 @@ def get_route_coordinates(route):
     timeseries = Traffic.get_route_coordinates(route)
     if timeseries is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
     coordinates = timeseries[0] if timeseries else None
-    return response(True, coordinates, 200)
+    return make_response(True, coordinates, 200)
 
 
 @traffic_blueprint.route("traffic/routes", methods=['GET'])
@@ -76,7 +76,7 @@ def get_routes_names():
     result = Traffic.get_routes_names(delta)
     if result is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
     routes = []
     for route in result:
@@ -84,7 +84,7 @@ def get_routes_names():
         routes.append({"route_type": route["_id"], "route_names": route_names})
 
     routes = sorted(routes, key=lambda x: -len(x["route_names"]))
-    return response(True, routes, 200)
+    return make_response(True, routes, 200)
 
 
 @traffic_blueprint.route("traffic/congestion/<region>", methods=['GET'])
@@ -96,9 +96,9 @@ def get_regions_congestion(region):
     result = Congestion.get_region_congestion(region, limit)
     if result is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
-    return response(True, result, 200)
+    return make_response(True, result, 200)
 
 
 @traffic_blueprint.route("static/<info_id>", methods=['GET'])
@@ -108,7 +108,7 @@ def get_routes_static_info(info_id):
     result = Transport.static_info(info_id)
     if result is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return response(False, message, 503)
+        return make_response(False, message, 503)
 
     info = sorted(result, key=lambda x: -x["value"])
-    return response(True, info, 200)
+    return make_response(True, info, 200)
