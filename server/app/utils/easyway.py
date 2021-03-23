@@ -25,6 +25,7 @@ STATIC_AGENCY_FILE = f"{APP_CONFIG.STATIC_DIR}/agency.txt"
 STATIC_TRIPS_FILE = f"{APP_CONFIG.STATIC_DIR}/trips.txt"
 STATIC_REGIONS_FILE = f"{APP_CONFIG.STATIC_DIR}/regions.json"
 STATIC_STOP_TIMES_FILE = f"{APP_CONFIG.STATIC_DIR}/stop_times.txt"
+STATIC_STOPS_FILE = f"{APP_CONFIG.STATIC_DIR}/stops.txt"
 
 
 def parse_traffic(gtfs, prev_odometers):
@@ -132,7 +133,7 @@ def parse_routes():
     return routes
 
 
-def parse_trips():
+def parse_route_trips():
     """Return list of trips for each route in Lviv."""
     trips_csv = load_csv(STATIC_TRIPS_FILE)
 
@@ -145,6 +146,43 @@ def parse_trips():
     return trips
 
 
+def parse_trips():
+    """Return trip_id and route_id mapping"""
+    trips_csv = load_csv(STATIC_TRIPS_FILE)
+
+    trips = {}
+    for trip in trips_csv:
+        trip_id = trip["trip_id"]
+        route_id = trip["route_id"]
+
+        trips[trip_id] = route_id
+
+    return trips
+
+
+
+def parse_stops():
+    """Return stops information from static stops file."""
+    stops_csv = load_csv(STATIC_STOPS_FILE)
+
+    stops = {}
+    for stop in stops_csv:
+        stop_id = stop["stop_id"]
+        stop_latitude = stop["stop_lat"]
+        stop_longitude = stop["stop_lon"]
+        stop_name = stop["stop_name"]
+        stop_desc = stop["stop_desc"]
+
+        stops[stop_id] = {
+            "stop_name": stop_name,
+            "stop_desc": stop_desc,
+            "stop_latitude": stop_latitude,
+            "stop_longitude": stop_longitude,
+        }
+
+    return stops
+
+
 def parse_regions_bounds():
     """Return polygon for each region by its bounds."""
     regions_bounds = load_json(STATIC_REGIONS_FILE)
@@ -155,7 +193,7 @@ def parse_regions_bounds():
 
 def get_stops_per_routes():
     """Return dict with data about count of stops per routes."""
-    routes = parse_trips()
+    routes = parse_route_trips()
     routes_names = parse_routes_names()
 
     trips_map = {}
@@ -182,7 +220,7 @@ def get_stops_per_routes():
 def get_transport_counts():
     """Return transport counts per agency, transport type and certain route."""
     routes = parse_routes()
-    trips = parse_trips()
+    trips = parse_route_trips()
 
     agencies_counter = collections.Counter([route["agency_name"] for route in routes])
     agencies_count = [{"id": k, "value": v} for k, v in agencies_counter.items()]
@@ -200,3 +238,29 @@ def get_transport_counts():
         "transport_per_type": route_type_count,
         "transport_per_routes": routes_count,
     }
+
+
+def get_stops_data():
+    """Return full stop times information."""
+    stops = parse_stops()
+    trips = parse_trips()
+    routes_names = parse_routes_names()
+
+    stops_times_csv = load_csv(STATIC_STOP_TIMES_FILE)
+    for stop_time in stops_times_csv:
+        stop_id = stop_time["stop_id"]
+        stop = stops[stop_id]
+        if "arrivals" not in stop:
+            stop["arrivals"] = []
+
+        trip_id = stop_time["trip_id"]
+        route_id = trips[trip_id]
+        route_name = routes_names[route_id]
+        arrival_time = stop_time["arrival_time"]
+
+        stop["arrivals"].append({
+            "route_name": route_name,
+            "arrival_time": arrival_time
+        })
+
+    return stops
