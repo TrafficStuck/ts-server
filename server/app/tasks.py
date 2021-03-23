@@ -11,6 +11,7 @@ from app.utils.misc import download_context, unzip
 from app.utils.easyway import (
     get_transport_counts,
     get_stops_per_routes,
+    get_stops_data,
     parse_traffic,
     parse_traffic_congestion,
 )
@@ -32,7 +33,6 @@ def at_start(sender, **kwargs):
     """Run following tasks on the celery work startup."""
     with sender.app.connection() as conn:
         sender.app.send_task("app.tasks.prepare_easyway_static", connection=conn)
-        sender.app.send_task("app.tasks.collect_traffic", connection=conn)
 
 
 @CELERY_APP.task(
@@ -111,4 +111,25 @@ def prepare_easyway_static(self):
         LOG.error("Failed to insert routes easyway static data: %s", err)
         raise self.retry()
 
+    prepare_stops_times.delay()
     LOG.info("Successfully inserted easyway static data.")
+
+
+@CELERY_APP.task(
+    bind=True,
+    default_retry_delay=30,  # 30 seconds for retry delay
+    retry_kwargs={"max_retries": 2})
+def prepare_stops_times(self):
+    """
+    Parse a couple static files (trips, routes, stops, stop_times) in order
+    to format full stop times information and insert it into stops collection.
+    """
+    stops_times = get_stops_data()
+    docs = [{"id": k, **v} for k, v in stops_times.items()]
+    try:
+        # TODO: transaction
+        MONGO_DATABASE.stops.drop()
+        MONGO_DATABASE.stops.insert_many(docs)
+    except PyMongoError as err:
+        LOG.error("Failed to insert stops easyway static data: %s", err)
+        raise self.retry()
