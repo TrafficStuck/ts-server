@@ -168,16 +168,15 @@ def parse_stops():
     stops = {}
     for stop in stops_csv:
         stop_id = stop["stop_id"]
-        stop_latitude = stop["stop_lat"]
-        stop_longitude = stop["stop_lon"]
+        stop_latitude = float(stop["stop_lat"])
+        stop_longitude = float(stop["stop_lon"])
         stop_name = stop["stop_name"]
         stop_desc = stop["stop_desc"]
 
         stops[stop_id] = {
             "stop_name": stop_name,
             "stop_desc": stop_desc,
-            "stop_latitude": stop_latitude,
-            "stop_longitude": stop_longitude,
+            "coordinates": [stop_latitude, stop_longitude]
         }
 
     return stops
