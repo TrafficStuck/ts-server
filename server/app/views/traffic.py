@@ -6,10 +6,10 @@ from flask import Blueprint, request
 
 from app import CACHE
 from app.utils.misc import make_response
-from app.helpers.traffic import Traffic, Congestion, Transport
+from app.helpers.traffic import Traffic, Congestion
 
 
-traffic_blueprint = Blueprint('traffic-stuck', __name__)
+traffic_blueprint = Blueprint('traffic-stuck-traffic', __name__)
 
 
 @traffic_blueprint.route("traffic/<route>/avg_speed", methods=["GET"])
@@ -99,16 +99,3 @@ def get_regions_congestion(region):
         return make_response(False, message, 503)
 
     return make_response(True, result, 200)
-
-
-@traffic_blueprint.route("static/<info_id>", methods=['GET'])
-@CACHE.cached(timeout=86400)  # 1 day in seconds
-def get_routes_static_info(info_id):
-    """Return routes static information by id."""
-    result = Transport.static_info(info_id)
-    if result is None:
-        message = "Couldn't retrieve data from database. Try again, please."
-        return make_response(False, message, 503)
-
-    info = sorted(result, key=lambda x: -x["value"])
-    return make_response(True, info, 200)

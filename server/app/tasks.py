@@ -105,8 +105,8 @@ def prepare_easyway_static(self):
     docs = [{"id": k, "data": v} for k, v in easyway_static_data.items()]
     try:
         # TODO: transaction
-        MONGO_DATABASE.transport.drop()
-        MONGO_DATABASE.transport.insert_many(docs)
+        MONGO_DATABASE.static.delete_many({})
+        MONGO_DATABASE.static.insert_many(docs)
     except PyMongoError as err:
         LOG.error("Failed to insert routes easyway static data: %s", err)
         raise self.retry()
@@ -128,7 +128,7 @@ def prepare_stops_times(self):
     docs = [{"id": k, **v} for k, v in stops_times.items()]
     try:
         # TODO: transaction
-        MONGO_DATABASE.stops.drop()
+        MONGO_DATABASE.stops.delete_many({})
         MONGO_DATABASE.stops.insert_many(docs)
     except PyMongoError as err:
         LOG.error("Failed to insert stops easyway static data: %s", err)

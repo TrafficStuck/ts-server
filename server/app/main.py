@@ -7,6 +7,8 @@ from flask_cors import CORS
 
 from app import CACHE
 from app.views.traffic import traffic_blueprint
+from app.views.static import static_blueprint
+from app.views.stops import stops_blueprint
 
 
 def create_app():
@@ -15,6 +17,9 @@ def create_app():
     CORS(app)
 
     app.register_blueprint(traffic_blueprint, url_prefix="/api/v1")
+    app.register_blueprint(static_blueprint, url_prefix="/api/v1")
+    app.register_blueprint(stops_blueprint, url_prefix="/api/v1")
+
     app_settings = os.environ.get("SERVER_SETTINGS", "app.settings.DevelopmentConfig")
     app.config.from_object(app_settings)
 
