@@ -1,5 +1,7 @@
 """This module provides API views for static data."""
 
+from http import HTTPStatus
+
 from flask import Blueprint
 
 from app import CACHE
@@ -17,7 +19,7 @@ def get_routes_static_info(info_id):
     result = Static.get_static_info(info_id)
     if result is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return make_response(False, message, 503)
+        return make_response(False, message, HTTPStatus.BAD_REQUEST)
 
     info = sorted(result, key=lambda x: -x["value"])
-    return make_response(True, info, 200)
+    return make_response(True, info, HTTPStatus.OK)
