@@ -10,6 +10,7 @@ from shapely.geometry import Polygon, Point
 
 from app import APP_CONFIG
 from app.utils.misc import load_csv, load_json
+from app.utils.time import get_time_integer
 
 
 ROUTE_TYPE_MAP = {
@@ -160,7 +161,6 @@ def parse_trips():
     return trips
 
 
-
 def parse_stops():
     """Return stops information from static stops file."""
     stops_csv = load_csv(STATIC_STOPS_FILE)
@@ -259,7 +259,8 @@ def get_stops_data():
 
         stop["arrivals"].append({
             "route_name": route_name,
-            "arrival_time": arrival_time
+            "arrival_time": arrival_time,
+            "arrival_time_integer": get_time_integer(arrival_time)
         })
 
     return stops

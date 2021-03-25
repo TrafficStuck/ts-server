@@ -5,7 +5,7 @@ import logging
 from pymongo.errors import PyMongoError
 
 from app import MONGO_DATABASE
-from app.utils.misc import get_time_range
+from app.utils.time import get_time_range
 
 
 LOGGER = logging.getLogger(__name__)

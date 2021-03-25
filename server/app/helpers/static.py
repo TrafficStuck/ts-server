@@ -19,12 +19,13 @@ class Static:
     def get_static_info(cls, info_id):
         """Retrieve transport static information by id."""
         try:
-            cursor = cls.collection.find_one(
-                filter={"id": info_id},
-                projection={'_id': 0}
-            )
+            result = cls.collection.find_one(filter={"_id": info_id})
         except PyMongoError as err:
             LOGGER.error("Couldn't retrieve static info (%s): %s", info_id, err)
             return None
 
-        return cursor.get("data", [])
+        if result is None:
+            LOGGER.error("Couldn't find static info (%s)", info_id)
+            return None
+
+        return result.get("data")

@@ -8,7 +8,7 @@ from celery.signals import worker_ready
 
 from app import MONGO_DATABASE, CELERY_APP, REDIS, APP_CONFIG
 from app.utils.misc import download_context, unzip
-from app.utils.easyway import (
+from app.helpers.easyway import (
     get_transport_counts,
     get_stops_per_routes,
     get_stops_data,
@@ -102,7 +102,7 @@ def prepare_easyway_static(self):
         **transport_counts
     }
 
-    docs = [{"id": k, "data": v} for k, v in easyway_static_data.items()]
+    docs = [{"_id": k, "data": v} for k, v in easyway_static_data.items()]
     try:
         # TODO: transaction
         MONGO_DATABASE.static.delete_many({})
@@ -125,7 +125,7 @@ def prepare_stops_times(self):
     to format full stop times information and insert it into stops collection.
     """
     stops_times = get_stops_data()
-    docs = [{"id": k, **v} for k, v in stops_times.items()]
+    docs = [{"_id": k, **v} for k, v in stops_times.items()]
     try:
         # TODO: transaction
         MONGO_DATABASE.stops.delete_many({})
