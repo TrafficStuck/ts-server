@@ -44,3 +44,17 @@ def get_nearest_arrivals(stop_id):
     nearest_arrivals = filter(lambda x: time_start <= x["arrival_time_integer"] <= time_end, stop["arrivals"])
 
     return make_response(True, list(nearest_arrivals), HTTPStatus.OK)
+
+
+@stops_blueprint.route("stops", methods=["GET"])
+def get_stops():
+    """Return stops suggestion by name."""
+    query = request.args.get("query", "")
+    limit = request.args.get("limit", type=int, default=10)
+
+    stops = Stops.get_stops_by_name(query, limit)
+    if stops is None:
+        message = "Couldn't retrieve data from database. Try again, please."
+        return make_response(False, message, HTTPStatus.BAD_REQUEST)
+
+    return make_response(True, stops, HTTPStatus.OK)
