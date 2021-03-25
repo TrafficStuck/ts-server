@@ -32,7 +32,6 @@ class Stops:
 
         return list(cursor)
 
-
     @classmethod
     def get_stop_by_id(cls, stop_id):
         """Retrieve the stop by provided id"""
@@ -47,3 +46,18 @@ class Stops:
             return None
 
         return result
+
+    @classmethod
+    def get_stops_by_name(cls, query, limit):
+        """Retrieve the stop by provided id"""
+        try:
+            cursor = cls.collection.find(
+                filter={"$text":{"$search": query}},
+                projection={"arrivals": 0},
+                limit=limit
+            )
+        except PyMongoError as err:
+            LOGGER.error("Couldn't retrieve stops by name (%s): %s", query, err)
+            return None
+
+        return list(cursor)

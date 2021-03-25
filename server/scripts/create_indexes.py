@@ -10,19 +10,20 @@ from app import MONGO_DATABASE
 LOGGER = logging.getLogger(__name__)
 
 STOPS_COORDINATES_INDEX_NAME = "stops_coordinates_index"
+STOPS_NAMES_INDEX_NAME = "stops_names_index"
 
 
-def create_index(collection, index_field, index_type, index_name):
+def create_index(collection, index, index_name):
     """Create index if not exists."""
     if index_name in collection.index_information():
         LOGGER.error(
-            "Index `%s` (%s: %s) already exists in `%s` collection.",
-            index_name, index_field, index_type, collection.name
+            "Index `%s` (%s) already exists in `%s` collection.",
+            index_name, index, collection.name
         )
         return
 
     try:
-        result = collection.create_index([(index_field, index_type)], name=index_name)
+        result = collection.create_index(index, name=index_name)
         if result:
             LOGGER.info("Index `%s` was successfully created.", index_name)
         else:
@@ -35,12 +36,17 @@ def create_indexes():
     """
     Create indexes in collection if not exists:
         1. stops: 2d index on `coordinates`
+        2. stops: text index on `stop_name` and `stop_desc`
     """
     create_index(
         collection=MONGO_DATABASE.stops,
-        index_field="coordinates",
-        index_type=pymongo.GEO2D,
+        index=[("coordinates", pymongo.GEO2D)],
         index_name=STOPS_COORDINATES_INDEX_NAME
+    )
+    create_index(
+        collection=MONGO_DATABASE.stops,
+        index=[("stop_name", pymongo.TEXT), ("stop_desc", pymongo.TEXT)],
+        index_name=STOPS_NAMES_INDEX_NAME
     )
 
 
