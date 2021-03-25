@@ -2,7 +2,7 @@
 
 import logging
 
-from pymongo.errors import PyMongoError
+import pymongo
 
 from app import MONGO_DATABASE
 from app.utils.time import get_time_range
@@ -20,16 +20,17 @@ class Congestion:
     def get_region_congestion(cls, region, limit):
         """Retrieve region congestion by region name."""
         try:
-            result = list(cls.collection.find(
+            result = cls.collection.find(
                 filter={"id": region},
                 limit=limit,
-                projection={'_id': 0}
-            ))
-        except (PyMongoError, TypeError) as err:
+                projection={'_id': 0},
+                sort=[("timestamp", pymongo.DESCENDING)]
+            )
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve region congestion (%s): %s", region, err)
             return None
 
-        return result
+        return list(result)
 
 
 class Traffic:
@@ -64,7 +65,7 @@ class Traffic:
         ]
         try:
             cursor = cls.collection.aggregate(pipeline)
-        except PyMongoError as err:
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve aggregated timeseries: %s", err)
             return None
 
@@ -90,7 +91,7 @@ class Traffic:
         ]
         try:
             cursor = cls.collection.aggregate(pipeline)
-        except PyMongoError as err:
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve aggregated timeseries: %s", err)
             return None
 
@@ -116,7 +117,7 @@ class Traffic:
         ]
         try:
             cursor = cls.collection.aggregate(pipeline)
-        except PyMongoError as err:
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve aggregated timeseries: %s", err)
             return None
 
@@ -144,7 +145,7 @@ class Traffic:
         ]
         try:
             cursor = cls.collection.aggregate(pipeline)
-        except PyMongoError as err:
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve aggregated timeseries: %s", err)
             return None
 
@@ -166,7 +167,7 @@ class Traffic:
         ]
         try:
             cursor = cls.collection.aggregate(pipeline)
-        except PyMongoError as err:
+        except pymongo.errors.PyMongoError as err:
             LOGGER.error("Couldn't retrieve aggregated timeseries: %s", err)
             return None
 
