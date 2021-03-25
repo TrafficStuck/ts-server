@@ -3,17 +3,10 @@
 import csv
 import zipfile
 import json
-from datetime import datetime
+from http import HTTPStatus
 
 import requests
 from flask import jsonify
-
-
-def get_time_range(delta):
-    """Return time range by delta."""
-    end = datetime.now().timestamp()
-    start = end - delta
-    return start, end
 
 
 def make_response(success, result, status_code):
@@ -29,7 +22,7 @@ def download_context(url, save_to=None):
     except requests.exceptions.RequestException:
         return None
 
-    if not response.status_code == 200:
+    if not response.status_code == HTTPStatus.OK:
         return None
 
     if save_to:
