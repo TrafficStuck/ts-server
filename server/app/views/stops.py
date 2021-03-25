@@ -1,5 +1,7 @@
 """This module provides API views for timeseries data."""
 
+from http import HTTPStatus
+
 from flask import Blueprint, request
 
 from app.utils.misc import make_response
@@ -17,11 +19,11 @@ def get_nearest_stops():
     longitude = request.args.get("longitude", type=float)
     if not latitude or not longitude:
         message = "The required params latitude and longitude weren't provided."
-        return make_response(False, message, 400)
+        return make_response(False, message, HTTPStatus.BAD_REQUEST)
 
     nearest_stops = Stops.get_nearest_stops(latitude, longitude, limit)
     if nearest_stops is None:
         message = "Couldn't retrieve data from database. Try again, please."
-        return make_response(False, message, 503)
+        return make_response(False, message, HTTPStatus.BAD_REQUEST)
 
-    return make_response(True, nearest_stops, 200)
+    return make_response(True, nearest_stops, HTTPStatus.OK)
