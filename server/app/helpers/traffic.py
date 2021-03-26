@@ -4,11 +4,16 @@ import logging
 
 import pymongo
 
-from app import MONGO_DATABASE
+from app import MONGO_DATABASE, REDIS
+from app.constants import REDIS_ROUTES_MIN_SPEED_KEY
+from app.helpers.outliers import iqr
 from app.utils.time import get_time_range
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+MIN_DISTANCE_CACHE_KEY = "MIN_DISTANCE"
 
 
 class Congestion:
@@ -124,6 +129,37 @@ class Traffic:
         return cls._format_timeseries(cursor)
 
     @classmethod
+    def get_routes_speeds(cls):
+        """Return all routes speeds for the provided time."""
+        try:
+            cursor = cls.collection.find(
+                filter={"trip_speed": {"$ne": 0}},
+                projection={"_id": 0, "trip_speed": 1}
+            )
+        except pymongo.errors.PyMongoError as err:
+            LOGGER.error("Couldn't retrieve routes speeds: %s", err)
+            return None
+
+        return list(cursor)
+
+    @classmethod
+    def get_routes_min_speed(cls):
+        """Return min routes speed for the provided time."""
+        min_speed = REDIS.get(REDIS_ROUTES_MIN_SPEED_KEY)
+        if not min_speed:
+            routes_speeds = cls.get_routes_speeds()
+            if not routes_speeds:
+                LOGGER.error("Couldn't find min routes speed.")
+                return None
+
+            routes_speeds = iqr([x["trip_speed"] for x in routes_speeds], q1_bound=0.1)
+            min_speed = min(routes_speeds)
+            REDIS.set(REDIS_ROUTES_MIN_SPEED_KEY, min_speed, 24 * 60 * 60)
+
+        LOGGER.info("Calculated min speed: %s", min_speed)
+        return min_speed
+
+    @classmethod
     def get_route_coordinates(cls, route):
         """Retrieve coordinates for route."""
         pipeline = [
@@ -140,7 +176,7 @@ class Traffic:
                     }
                 }
             }},
-            {"$sort": {"_id.timestamp": -1}},
+            {"$sort": {"_id.timestamp": pymongo.DESCENDING}},
             {"$limit": 1}
         ]
         try:

@@ -1,16 +1,24 @@
 """This module provides helper functionality to work with easyway data."""
 
 import re
-import time
 import collections
 
 from google import protobuf
 from google.transit import gtfs_realtime_pb2
-from shapely.geometry import Polygon, Point
+from shapely.geometry import Point
 
-from app import APP_CONFIG
-from app.utils.misc import load_csv, load_json
+from app.utils.misc import load_csv
 from app.utils.time import get_time_integer
+from app.helpers.traffic import Traffic
+from app.helpers.easyway_static import (
+    STATIC_STOP_TIMES_FILE,
+    get_routes_names,
+    get_regions_bounds,
+    get_routes_trips,
+    get_routes,
+    get_trips,
+    get_stops
+)
 
 
 ROUTE_TYPE_MAP = {
@@ -19,17 +27,9 @@ ROUTE_TYPE_MAP = {
     "Т": "Трамвай",
     "Тр": "Тролейбус"
 }
-MIN_DISTANCE = 1 / 0.4
-
-STATIC_ROUTES_FILE = f"{APP_CONFIG.STATIC_DIR}/routes.txt"
-STATIC_AGENCY_FILE = f"{APP_CONFIG.STATIC_DIR}/agency.txt"
-STATIC_TRIPS_FILE = f"{APP_CONFIG.STATIC_DIR}/trips.txt"
-STATIC_REGIONS_FILE = f"{APP_CONFIG.STATIC_DIR}/regions.json"
-STATIC_STOP_TIMES_FILE = f"{APP_CONFIG.STATIC_DIR}/stop_times.txt"
-STATIC_STOPS_FILE = f"{APP_CONFIG.STATIC_DIR}/stops.txt"
 
 
-def parse_traffic(gtfs, prev_odometers):
+def parse_traffic(gtfs, timestamp, prev_odometers):
     """Compile and parse GTFS data using protobuf to dictionary format."""
     feed = gtfs_realtime_pb2.FeedMessage()
 
@@ -39,9 +39,8 @@ def parse_traffic(gtfs, prev_odometers):
         return None
 
     traffic = []
-    timestamp = int(time.time())
     route_type_re = re.compile(r"\d+")
-    route_names = parse_routes_names()
+    route_names = get_routes_names()
     for entity in feed.entity:
         vehicle = entity.vehicle
         position = vehicle.position
@@ -73,130 +72,43 @@ def parse_traffic(gtfs, prev_odometers):
     return traffic
 
 
-def parse_traffic_congestion(traffic):
+def parse_traffic_congestion(traffic, timestamp):
     """Return parsed traffic congestion by regions."""
-    regions_distances = collections.defaultdict(list)
-    regions_polygons = parse_regions_bounds()
+    regions_speeds = collections.defaultdict(list)
+    regions_polygons = get_regions_bounds()
     for route in traffic:
-        trip_distance = route["trip_distance"]
+        trip_speed = route["trip_speed"]
         point = Point((route["trip_latitude"], route["trip_longitude"]))
         for name, poly in regions_polygons.items():
             if poly.contains(point):
-                regions_distances[name].append(trip_distance)
+                regions_speeds[name].append(trip_speed)
 
-    def get_congestion_percentage(distances):
-        """Return region congestion in percentage."""
-        distances = list(filter(lambda x: x != 0, distances))
+    traffic_congestions = []
+    min_speed = Traffic.get_routes_min_speed()
+    for region, region_speeds in regions_speeds.items():
+        region_speeds = list(filter(lambda x: x != 0, region_speeds))
         try:
-            avg_distance = sum(distances) / len(distances)
-            return 100 / avg_distance / MIN_DISTANCE
-        except ZeroDivisionError:
-            return 0
+            region_avg_speed = sum(region_speeds) / len(region_speeds)
+            region_congestion = (100 * min_speed) / region_avg_speed
+        except (ZeroDivisionError, TypeError):
+            continue
+        else:
+            traffic_congestions.append({
+                "id": region,
+                "value": region_congestion,
+                "timestamp": timestamp
+            })
 
-    timestamp = traffic[0]["timestamp"] if traffic else None
-    traffic_congestion = [{
-        "id": region,
-        "value": get_congestion_percentage(distances),
-        "timestamp": timestamp
-    } for region, distances in regions_distances.items()]
-
-    return traffic_congestion
-
-
-def parse_routes_names():
-    """Return short name for each route id."""
-    routes_csv = load_csv(STATIC_ROUTES_FILE)
-    return {route["route_id"]: route["route_short_name"] for route in routes_csv}
-
-
-def parse_routes():
-    """Load csv file with static data for routes in Lviv."""
-    agency_csv = load_csv(STATIC_AGENCY_FILE)
-    routes_csv = load_csv(STATIC_ROUTES_FILE)
-
-    agencies = {agency["agency_id"]: agency["agency_name"] for agency in agency_csv}
-    routes = []
-    for route in routes_csv:
-        route_short_name = route["route_short_name"]
-        route_type_short = re.sub(r"\d+", "", route_short_name)
-        route_type = ROUTE_TYPE_MAP.get(route_type_short, "Інші")
-
-        routes.append({
-            "id": route["route_id"],
-            "route_type": route_type,
-            "short_name": route_short_name,
-            "long_name": route["route_long_name"],
-            "agency_id": route["agency_id"],
-            "agency_name": agencies[route["agency_id"]],
-            "trips": [],
-        })
-
-    return routes
-
-
-def parse_route_trips():
-    """Return list of trips for each route in Lviv."""
-    trips_csv = load_csv(STATIC_TRIPS_FILE)
-
-    trips = collections.defaultdict(set)
-    for trip in trips_csv:
-        route_id = trip["route_id"]
-        trip_id = trip["block_id"]
-        trips[route_id].add(trip_id)
-
-    return trips
-
-
-def parse_trips():
-    """Return trip_id and route_id mapping"""
-    trips_csv = load_csv(STATIC_TRIPS_FILE)
-
-    trips = {}
-    for trip in trips_csv:
-        trip_id = trip["trip_id"]
-        route_id = trip["route_id"]
-
-        trips[trip_id] = route_id
-
-    return trips
-
-
-def parse_stops():
-    """Return stops information from static stops file."""
-    stops_csv = load_csv(STATIC_STOPS_FILE)
-
-    stops = {}
-    for stop in stops_csv:
-        stop_id = stop["stop_id"]
-        stop_latitude = float(stop["stop_lat"])
-        stop_longitude = float(stop["stop_lon"])
-        stop_name = stop["stop_name"]
-        stop_desc = stop["stop_desc"]
-
-        stops[stop_id] = {
-            "stop_name": stop_name,
-            "stop_desc": stop_desc,
-            "coordinates": [stop_latitude, stop_longitude]
-        }
-
-    return stops
-
-
-def parse_regions_bounds():
-    """Return polygon for each region by its bounds."""
-    regions_bounds = load_json(STATIC_REGIONS_FILE)
-    regions_polygons = {k: Polygon(v) for k, v in regions_bounds.items()}
-
-    return regions_polygons
+    return traffic_congestions
 
 
 def get_stops_per_routes():
     """Return dict with data about count of stops per routes."""
-    routes = parse_route_trips()
-    routes_names = parse_routes_names()
+    routes_trips = get_routes_trips()
+    routes_names = get_routes_names()
 
     trips_map = {}
-    for route, trips in routes.items():
+    for route, trips in routes_trips.items():
         trips_map.update({trip: route for trip in trips})
 
     stops = set()
@@ -218,8 +130,8 @@ def get_stops_per_routes():
 
 def get_transport_counts():
     """Return transport counts per agency, transport type and certain route."""
-    routes = parse_routes()
-    trips = parse_route_trips()
+    routes = get_routes()
+    routes_trips = get_routes_trips()
 
     agencies_counter = collections.Counter([route["agency_name"] for route in routes])
     agencies_count = [{"id": k, "value": v} for k, v in agencies_counter.items()]
@@ -229,8 +141,10 @@ def get_transport_counts():
     route_type_count = [{"id": k, "value": v} for k, v in route_type_counter.items()]
 
     route_names = {route["id"]: route["short_name"] for route in routes}
-    routes_count = [{"id": route_names[route_id], "value": len(set(trips_ids))}
-                    for route_id, trips_ids in trips.items()]
+    routes_count = [
+        {"id": route_names[route_id], "value": len(set(trips_ids))}
+        for route_id, trips_ids in routes_trips.items()
+    ]
 
     return {
         "transport_per_agencies": agencies_count,
@@ -241,9 +155,9 @@ def get_transport_counts():
 
 def get_stops_data():
     """Return full stop times information."""
-    stops = parse_stops()
-    trips = parse_trips()
-    routes_names = parse_routes_names()
+    stops = get_stops()
+    trips = get_trips()
+    routes_names = get_routes_names()
 
     stops_times_csv = load_csv(STATIC_STOP_TIMES_FILE)
     for stop_time in stops_times_csv:

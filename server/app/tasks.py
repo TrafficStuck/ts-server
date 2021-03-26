@@ -1,5 +1,6 @@
 """This module provides celery tasks."""
 
+import time
 import logging
 import pickle
 
@@ -7,6 +8,7 @@ from pymongo.errors import PyMongoError
 from celery.signals import worker_ready
 
 from app import MONGO_DATABASE, CELERY_APP, REDIS, APP_CONFIG
+from app.constants import REDIS_GTFS_ODOMETERS_KEY_KEY
 from app.utils.misc import download_context, unzip
 from app.helpers.easyway import (
     get_transport_counts,
@@ -18,9 +20,6 @@ from app.helpers.easyway import (
 
 
 LOG = logging.getLogger(__name__)
-
-TRAFFIC_COLLECTION = MONGO_DATABASE.traffic
-TRAFFIC_CONGESTION_COLLECTION = MONGO_DATABASE.traffic_congestion
 
 STATIC_URL = "http://track.ua-gis.com/gtfs/lviv/static.zip"
 VEHICLE_URL = "http://track.ua-gis.com/gtfs/lviv/vehicle_position"
@@ -50,26 +49,32 @@ def collect_traffic(self):
         raise self.retry()
 
     try:
-        prev_odometers = pickle.loads(REDIS.get(GTFS_ODOMETERS_KEY))
+        prev_odometers = pickle.loads(REDIS.get(REDIS_GTFS_ODOMETERS_KEY_KEY))
     except (TypeError, pickle.UnpicklingError):
         prev_odometers = {}
 
-    traffic = parse_traffic(gtfs_content, prev_odometers)
+    timestamp = int(time.time())
+    traffic = parse_traffic(gtfs_content, timestamp, prev_odometers)
     if not traffic:
         LOG.error("Failed to compile GTFS data to json format.")
         raise self.retry()
 
-    traffic_congestion = parse_traffic_congestion(traffic)
+    traffic_congestion = parse_traffic_congestion(traffic, timestamp)
+    if not traffic_congestion:
+        LOG.error("Failed to calculate traffic congestions.")
+
     try:
-        TRAFFIC_COLLECTION.insert_many(traffic)
-        TRAFFIC_CONGESTION_COLLECTION.insert_many(traffic_congestion)
+        MONGO_DATABASE.traffic.insert_many(traffic)
+        MONGO_DATABASE.traffic_congestion.insert_many(traffic_congestion)
+    except TypeError:
+        # trying to insert empty list of documents
+        pass
     except PyMongoError as err:
         LOG.error("Failed to insert collected routes: %s", err)
         raise self.retry()
 
-    # TODO: think about prev odometers
     traffic_odometers = {x["trip_vehicle_id"]: x["trip_odometer"] for x in traffic}
-    REDIS.set(GTFS_ODOMETERS_KEY, pickle.dumps(traffic_odometers))
+    REDIS.set(REDIS_GTFS_ODOMETERS_KEY_KEY, pickle.dumps(traffic_odometers), 360)
 
     LOG.info("Successfully collected %s trips.", len(traffic))
 
