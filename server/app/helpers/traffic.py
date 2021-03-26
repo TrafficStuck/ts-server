@@ -4,11 +4,15 @@ import logging
 
 import pymongo
 
-from app import MONGO_DATABASE
+from app import MONGO_DATABASE, REDIS
+from app.helpers.outliers import iqr
 from app.utils.time import get_time_range
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+MIN_DISTANCE_CACHE_KEY = "MIN_DISTANCE"
 
 
 class Congestion:
@@ -122,6 +126,37 @@ class Traffic:
             return None
 
         return cls._format_timeseries(cursor)
+
+    @classmethod
+    def get_routes_distances(cls, delta):
+        """Return all routes distances for the provided period."""
+        start, end = get_time_range(delta)
+        try:
+            cursor = cls.collection.find(
+                filter={
+                    "trip_distance": {"$ne": 0},
+                    "timestamp": {"$gte": start, "$lte": end}
+                },
+                projection={"_id": 0, "trip_distance": 1}
+            )
+        except pymongo.errors.PyMongoError as err:
+            LOGGER.error("Couldn't retrieve routes distances: %s", err)
+            return None
+
+        return list(cursor)
+
+    @classmethod
+    def get_routes_min_distance(cls, delta):
+        """Return min routes distances for the provided period."""
+        min_distance = REDIS.get(MIN_DISTANCE_CACHE_KEY)
+        if not min_distance:
+            routes_distances = cls.get_routes_distances(delta)
+            routes_distances = iqr([x["trip_distance"] for x in routes_distances], q1_bound=0.1)
+            if routes_distances:
+                min_distance = min(routes_distances)
+                REDIS.set(MIN_DISTANCE_CACHE_KEY, min_distance, 1)  # TODO: set cache
+
+        return min_distance
 
     @classmethod
     def get_route_coordinates(cls, route):

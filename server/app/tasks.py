@@ -67,9 +67,8 @@ def collect_traffic(self):
         LOG.error("Failed to insert collected routes: %s", err)
         raise self.retry()
 
-    # TODO: think about prev odometers
     traffic_odometers = {x["trip_vehicle_id"]: x["trip_odometer"] for x in traffic}
-    REDIS.set(GTFS_ODOMETERS_KEY, pickle.dumps(traffic_odometers))
+    REDIS.set(GTFS_ODOMETERS_KEY, pickle.dumps(traffic_odometers), 360)
 
     LOG.info("Successfully collected %s trips.", len(traffic))
 

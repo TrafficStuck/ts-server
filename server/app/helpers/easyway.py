@@ -9,6 +9,7 @@ from google.transit import gtfs_realtime_pb2
 from shapely.geometry import Polygon, Point
 
 from app import APP_CONFIG
+from app.helpers.traffic import Traffic
 from app.utils.misc import load_csv, load_json
 from app.utils.time import get_time_integer
 
@@ -19,7 +20,6 @@ ROUTE_TYPE_MAP = {
     "Т": "Трамвай",
     "Тр": "Тролейбус"
 }
-MIN_DISTANCE = 1 / 0.4
 
 STATIC_ROUTES_FILE = f"{APP_CONFIG.STATIC_DIR}/routes.txt"
 STATIC_AGENCY_FILE = f"{APP_CONFIG.STATIC_DIR}/agency.txt"
@@ -86,10 +86,14 @@ def parse_traffic_congestion(traffic):
 
     def get_congestion_percentage(distances):
         """Return region congestion in percentage."""
+        min_distance = Traffic.get_routes_min_distance(3 * 30 * 24 * 60 * 60)
+        if not min_distance:
+            return 0
+        
         distances = list(filter(lambda x: x != 0, distances))
         try:
             avg_distance = sum(distances) / len(distances)
-            return 100 / avg_distance / MIN_DISTANCE
+            return 100 / avg_distance / min_distance
         except ZeroDivisionError:
             return 0
 
