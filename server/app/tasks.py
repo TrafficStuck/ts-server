@@ -3,6 +3,7 @@
 import time
 import logging
 import pickle
+import requests
 
 from pymongo.errors import PyMongoError
 from celery.signals import worker_ready
@@ -138,3 +139,12 @@ def prepare_stops_times(self):
     except PyMongoError as err:
         LOG.error("Failed to insert stops easyway static data: %s", err)
         raise self.retry()
+
+
+@CELERY_APP.task()
+def wakeup_server(self):
+    """
+    Make get status request to api server in order to wake up since
+    it's going to sleep every 30 min (heroku free dyno)
+    """
+    requests.get("https://traffic-stuck-api.herokuapp.com/api/v1/health")
