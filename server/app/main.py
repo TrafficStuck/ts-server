@@ -1,6 +1,7 @@
 """This module provides initialization of required components."""
 
 import os
+import logging.config
 from http import HTTPStatus
 
 from flask import Flask
@@ -16,6 +17,27 @@ from app.views.index import (
     handle_405,
     handle_500
 )
+
+logging.config.dictConfig({
+    "version": 1,
+    "formatters": {
+        "default": {
+            "format": "[%(asctime)s] %(levelname)s: %(message)s",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "default",
+            "level": "INFO"
+        },
+    },
+    "root": {
+        "level": "INFO",
+        "handlers": ["console"]
+    }
+})
 
 
 def create_app():
