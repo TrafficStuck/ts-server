@@ -155,6 +155,8 @@ class Traffic:
             routes_speeds = iqr([x["trip_speed"] for x in routes_speeds], q1_bound=0.1)
             min_speed = min(routes_speeds)
             REDIS.set(REDIS_ROUTES_MIN_SPEED_KEY, min_speed, 24 * 60 * 60)
+        else:
+            min_speed = float(min_speed)
 
         LOGGER.info("Calculated min speed: %s", min_speed)
         return min_speed

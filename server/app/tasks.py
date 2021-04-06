@@ -141,10 +141,16 @@ def prepare_stops_times(self):
         raise self.retry()
 
 
-@CELERY_APP.task()
+@CELERY_APP.task(
+    bind=True,
+    default_retry_delay=30,  # 30 seconds for retry delay
+    retry_kwargs={"max_retries": 1})
 def wakeup_server(self):
     """
     Make get status request to api server in order to wake up since
     it's going to sleep every 30 min (heroku free dyno)
     """
-    requests.get("https://traffic-stuck-api.herokuapp.com/api/v1/health")
+    try:
+        requests.get("https://traffic-stuck-api.herokuapp.com/api/v1/health")
+    except requests.exceptions.RequestException:
+        raise self.retry()
