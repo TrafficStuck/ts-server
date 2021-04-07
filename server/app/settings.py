@@ -22,9 +22,14 @@ class BaseConfig:
     MONGO_URI = os.environ["MONGO_URI"]
     MONGO_SERVER_TIMEOUT = os.environ.get("MONGO_SERVER_TIMEOUT", 5000)
 
-    # SERVER
+    # Server
     SERVER_HOST = os.environ.get("SERVER_HOST", "localhost")
     SERVER_PORT = os.environ.get("SERVER_PORT", 5555)
+
+    # Google
+    GOOGLE_CREDENTIALS = os.environ["GOOGLE_CREDENTIALS"]
+    GOOGLE_CREDENTIALS_FILE = os.path.join(STATIC_DIR, "google-credentials.json")
+    GOOGLE_DRIVE_DIRECTORY_ID = os.environ["GOOGLE_DRIVE_DIRECTORY_ID"]
 
 
 class DevelopmentConfig(BaseConfig):

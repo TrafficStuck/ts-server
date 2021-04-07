@@ -51,6 +51,23 @@ class Traffic:
         ]
 
     @classmethod
+    def get_traffics(cls, start, end):
+        """Return all traffic data for provided period."""
+        try:
+            cursor = cls.collection.find(
+                filter={"timestamp": {"$gte": start, "$lte": end}},
+                projection={"_id": 0},
+            )
+        except pymongo.errors.PyMongoError as err:
+            LOGGER.error(
+                "Couldn't retrieve traffics for period (%s, %s). Error: %s",
+                start, end, err
+            )
+            return None
+
+        return list(cursor)
+
+    @classmethod
     def get_route_avg_speed(cls, route, delta):
         """Retrieve aggregated timeseries by route average speed."""
         start, end = get_time_range(delta)

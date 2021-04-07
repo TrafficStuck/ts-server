@@ -40,8 +40,12 @@ CELERY_APP.conf.beat_schedule = {
     },
     "wakeup_server": {
         "task": "app.tasks.wakeup_server",
-        "schedule": crontab(minute="*/25"),
+        "schedule": crontab(minute="*/10"),
     },
+    "dump_traffic": {
+        "task": "app.tasks.dump_traffic",
+        "schedule": crontab(minute=15, hour=3, day_of_week=1)
+    }
 }
 CELERY_APP.conf.timezone = "Europe/Kiev"
 CELERY_APP.conf.imports = ["app.tasks"]

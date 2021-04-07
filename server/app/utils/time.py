@@ -4,6 +4,7 @@ from datetime import datetime
 
 
 TIME_FORMAT = "%H:%M:%S"
+DATE_FORMAT = "%Y-%m-%d"
 
 
 def get_time_range(delta):

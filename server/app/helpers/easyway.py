@@ -2,6 +2,7 @@
 
 import re
 import collections
+from datetime import datetime
 
 from google import protobuf
 from google.transit import gtfs_realtime_pb2
@@ -67,6 +68,7 @@ def parse_traffic(gtfs, timestamp, prev_odometers):
             "trip_distance": position.odometer - prev_odometer,
 
             "timestamp": timestamp,
+            "date": datetime.now().isoformat()
         })
 
     return traffic
